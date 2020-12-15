@@ -22,5 +22,7 @@ fn main(){
     let ip=IpAddr::V4(Ipv4Addr::new(192,168,0,100));
     let address=SocketAddr::new(ip  ,8080);
 
-    let _server_socket=TcpListener::bind(address).unwrap();
+    let server_socket=TcpListener::bind(address).unwrap();
+
+    
 }
