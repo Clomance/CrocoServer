@@ -13,6 +13,7 @@ pub struct ClientServerChannel{
 }
 
 impl ClientServerChannel{
+    #[inline(always)]
     pub fn new(socket:TcpStream)->ClientServerChannel{
         Self{
             socket,

@@ -1,7 +1,10 @@
 use super::{
     // structs
+    ServerLogRef,
     ClientServerChannel,
+    ControlActivity,
     MessengerActivity,
+    AuthorizationActivity,
     Package,
     // enums
     ClientThreadMessenger,
@@ -10,14 +13,15 @@ use super::{
 };
 
 use std::{
-    io::{Read,Write},
+    io::Read,
     net::TcpStream,
     mem::MaybeUninit,
 };
 
 pub struct Client{
     pub thread_id:usize,
-    pub messenger:ClientThreadMessenger,
+    pub server_log:ServerLogRef,
+    pub thread_messenger:ClientThreadMessenger,
     pub channel:ClientServerChannel,
     pub package:Package,
 
@@ -26,10 +30,11 @@ pub struct Client{
 }
 
 impl Client{
-    pub fn new(thread_id:usize,messenger:ClientThreadMessenger)->Client{
+    pub fn new(thread_id:usize,server_log:ServerLogRef,thread_messenger:ClientThreadMessenger)->Client{
         Self{
             thread_id,
-            messenger,
+            server_log,
+            thread_messenger,
             channel:unsafe{MaybeUninit::uninit().assume_init()},
             package:Package::new(),
             signed_in:false,
@@ -59,41 +64,33 @@ impl Client{
 
             match ProtocolContants::new(task[0]){
                 ProtocolContants::ActivityAuthorization=>{
-                    //println!("Sign in");
-                        // Получение имени (255 знаков - максимум)
-                    if self.channel.read_string(&mut self.name).is_err(){
-                        break
+                    let mut authorization_activity=AuthorizationActivity::new(self);
+                    let result=authorization_activity.run();
+                    self.server_log.write(&format!("Authorization closed with {:?}",result));
+                    match result{
+                        ActivityResult::Closed=>continue,
+                        ActivityResult::Disconnected=>break,
                     }
+                }
 
-                    //println!("{}",self.name);
-
-                    // Проверка имени
-                    if self.name.is_empty(){
-                        break
+                ProtocolContants::ActivityControl=>{
+                    let mut control_activity=ControlActivity::new(self);
+                    let result=control_activity.run();
+                    self.server_log.write(&format!("Control closed with {:?}",result));
+                    match result{
+                        ActivityResult::Closed=>continue,
+                        ActivityResult::Disconnected=>break,
                     }
-
-                    // Регистрация в системе обмена сообщениями
-                    self.signed_in=self.messenger.sign_in(self.thread_id,&self.name);
-
-                    //println!("Signed in - {}",self.signed_in);
-
-                    // Отправка результата
-                    let result=ProtocolContants::ResultSignInErr as u8-self.signed_in as u8;
-                    if self.channel.socket.write_all(&[result]).is_err(){
-                        break
-                    }
-
-                    //println!("Signed in");
                 }
 
                 ProtocolContants::ActivityMessenger=>{
-                    //println!("Messenger");
+                    self.server_log.write("Messenger");
                     if self.signed_in{
-                        //println!("Signed");
+                        self.server_log.write("Signed");
                         // Передача управления активности
                         let mut messenger_activity=MessengerActivity::new(self);
                         let result=messenger_activity.run();
-                        //println!("Messenger closed with {:?}",result);
+                        self.server_log.write(&format!("Messenger closed with {:?}",result));
                         match result{
                             ActivityResult::Closed=>continue,
                             ActivityResult::Disconnected=>break,
@@ -107,13 +104,13 @@ impl Client{
             }
         }
 
-        //println!("Closed client");
+        self.server_log.write("Closed client");
 
         // Удаление пользователя из списка зарегистрированных
         // и очистка очереди сообщений
         if self.signed_in{
-            self.messenger.unsign(&self.name);
-            self.messenger.clear();
+            self.thread_messenger.unsign(&self.name);
+            self.thread_messenger.clear();
             self.name.clear();
             self.signed_in=false;
         }

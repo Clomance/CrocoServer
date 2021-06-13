@@ -8,7 +8,10 @@ use crate::{
 };
 
 use std::{
-    io::{Read,ErrorKind},
+    io::{
+        Read,
+        ErrorKind
+    },
 };
 
 pub struct MessengerActivity<'c>{
@@ -43,7 +46,7 @@ impl<'c> MessengerActivity<'c>{
                     }
 
                     ProtocolContants::TaskSendMessage=>{
-                        //println!("Send message");
+                        self.client.server_log.write("Send message");
                         let mut user=String::with_capacity(255);
                         let mut text=String::with_capacity(255);
                         // Получение имени (255 знаков - максимум)
@@ -51,9 +54,9 @@ impl<'c> MessengerActivity<'c>{
                                 self.client.channel.read_string(&mut text).is_err(){
                             break
                         }
-                        //println!("Sending");
+                        self.client.server_log.write("Sending");
                         // Отправка сообщения
-                        let sended=self.client.messenger.send(&user,ClientThreadMessage::Text{
+                        let sended=self.client.thread_messenger.send(&user,ClientThreadMessage::Text{
                             from:self.client.name.clone(),
                             text:text,
                         });
@@ -63,28 +66,28 @@ impl<'c> MessengerActivity<'c>{
                             break
                         }
 
-                        //println!("Sent message");
+                        self.client.server_log.write("Sent message");
                     }
 
                     ProtocolContants::TaskCheckMessages=>{
                         // Проверка наличия сообщений для данных потока и клиента
-                        if let Some(message)=self.client.messenger.receive(){
+                        if let Some(message)=self.client.thread_messenger.receive(){
                             match message{
                                 ClientThreadMessage::Text{
                                     from,
                                     text,
                                 }=>{
-                                    //println!("Got a message");
+                                    self.client.server_log.write("Got a message");
                                     self.client.package.clear();
                                     self.client.package.write_task(ProtocolContants::MessageText as u8);
                                     self.client.package.write_string(&from);
                                     self.client.package.write_string(&text);
-                                    //println!("Sending message");
+                                    self.client.server_log.write("Sending message");
                                     if self.client.channel.send_package(&self.client.package).is_err(){
-                                        //println!("Error");
+                                        self.client.server_log.write("Error");
                                         break
                                     }
-                                    //println!("Sent");
+                                    self.client.server_log.write("Sent");
                                 }
                                 _=>{}
                             }

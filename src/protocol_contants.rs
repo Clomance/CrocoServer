@@ -51,6 +51,20 @@ pub enum ProtocolContants{
     MessageFileDropAccepted,
     /// 29
     MessageFileDropDenied,
+    /// 30
+    NotAssigned30,
+    /// 31
+    NotAssigned31,
+    /// 32
+    NotAssigned32,
+    /// 33
+    NotAssigned33,
+    /// 34
+    NotAssigned34,
+    /// 35
+    ActivityControl,
+    /// 36
+    TaskCheckLog,
 }
 
 impl ProtocolContants{

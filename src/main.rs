@@ -9,6 +9,12 @@ use protocol_contants::ProtocolContants;
 mod package;
 use package::Package;
 
+mod server_log;
+pub use server_log::{
+    ServerLog,
+    ServerLogRef,
+};
+
 mod client;
 use client::Client;
 
@@ -35,7 +41,9 @@ use client_thread_messanger::{
 mod activities;
 use activities::{
     ActivityResult,
+    ControlActivity,
     MessengerActivity,
+    AuthorizationActivity,
 };
 
 use std::{
@@ -63,16 +71,19 @@ pub const client_thread_stack_size:usize=2*1024*1024; //bytes
 const package_size:usize=4096;
 
 fn main(){
+    let mut server_log=ServerLog::new();
+
     let ip=IpAddr::V4(Ipv4Addr::new(192,168,0,101));
     let address=SocketAddr::new(ip,8080);
 
     // Регистрация сервера
-    //println!("Binding");
+    server_log.write("Binding");
     let server_socket=TcpListener::bind(address).unwrap();
 
     // Создание клиентских потоков
-    //println!("Creating threads");
-    let client_threads=ClientThreads::start();
+    server_log.write("Creating threads");
+    let mut server_log=ServerLogRef::new(server_log);
+    let client_threads=ClientThreads::start(server_log.clone());
 
     loop{
         // Ожидание подключения
@@ -83,7 +94,7 @@ fn main(){
                         client_socket.set_write_timeout(Some(default_client_rw_timeout)).is_ok() &&
                         client_socket.set_nodelay(true).is_ok()
                 {
-                    //println!("Got connection");
+                    server_log.write("Got connection");
                     client_threads.handle(client_socket);
                 }
             },

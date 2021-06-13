@@ -1,6 +1,9 @@
 mod authorization;
 pub use authorization::AuthorizationActivity;
 
+mod control;
+pub use control::ControlActivity;
+
 mod messenger;
 pub use messenger::MessengerActivity;
 

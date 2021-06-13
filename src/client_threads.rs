@@ -3,6 +3,7 @@ use super::{
     client_thread_stack_size,
     Client,
     ClientThreadMessengerBuilder,
+    ServerLogRef,
 };
 
 use std::{
@@ -20,7 +21,7 @@ pub struct ClientThreads{
 }
 
 impl ClientThreads{
-    pub fn start()->ClientThreads{
+    pub fn start(server_log:ServerLogRef)->ClientThreads{
         // Канал для передачи клиента в свободный поток для обработки
         let (client_sender,client_receiver)=channel::<TcpStream>();
         let client_receiver=Arc::new(Mutex::new(client_receiver));
@@ -31,10 +32,12 @@ impl ClientThreads{
         while let Some(messanger)=client_thread_messanger_builder.next(){
             let name=format!("thread_{}",thread_id);
             let client_receiver=client_receiver.clone();
+            let server_log_ref=server_log.clone();
+
 
             Builder::new().name(name).stack_size(client_thread_stack_size).spawn(move||{
                 // Создание структуры для обработки клиента
-                let mut client=Client::new(thread_id,messanger);
+                let mut client=Client::new(thread_id,server_log_ref,messanger);
 
                 loop{
                     // Ожидание клиента
